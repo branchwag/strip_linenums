@@ -1,4 +1,5 @@
 use eframe::egui;
+use arboard::Clipboard;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
@@ -30,39 +31,91 @@ impl Default for StripLinesApp {
 impl eframe::App for StripLinesApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Strip Line Numbers");
             ui.add_space(10.0);
-            
-            // Input section
-            ui.label("Input (paste code with line numbers):");
-            let input_response = ui.add(
-                egui::TextEdit::multiline(&mut self.input_text)
-                    .desired_width(f32::INFINITY)
-                    .desired_rows(12)
-                    .font(egui::TextStyle::Monospace)
-            );
-            
-            // Auto-process when text changes
-            if input_response.changed() {
-                self.output_text = strip_line_numbers(&self.input_text);
-            }
-            
-            ui.add_space(10.0);
-            
-            // Output section
             ui.horizontal(|ui| {
-                ui.label("Output:");
-                if ui.button("Copy to Clipboard").clicked() {
-                    ui.output_mut(|o| o.copied_text = self.output_text.clone());
-                }
+                ui.add_space(10.0);
+                ui.vertical(|ui| {
+                    ui.heading("Strip Line Numbers");
+                    ui.add_space(10.0);
+                    
+                    // Input section
+                    ui.label("Input (paste code with line numbers):");
+                    egui::ScrollArea::vertical()
+                        .id_salt("input_scroll")
+                        .min_scrolled_height(200.0)
+                        .max_height(200.0)
+                        .show(ui, |ui| {
+                            ui.add_sized(
+                                [ui.available_width(), 200.0],
+                                egui::TextEdit::multiline(&mut self.input_text)
+                                    .font(egui::TextStyle::Monospace)
+                            ).context_menu(|ui| {
+                                if ui.button("Cut").clicked() {
+                                    if let Ok(mut clipboard) = Clipboard::new() {
+                                        let _ = clipboard.set_text(&self.input_text);
+                                    }
+                                    self.input_text.clear();
+                                    self.output_text.clear();
+                                    ui.close_menu();
+                                }
+                                if ui.button("Copy").clicked() {
+                                    if let Ok(mut clipboard) = Clipboard::new() {
+                                        let _ = clipboard.set_text(&self.input_text);
+                                    }
+                                    ui.close_menu();
+                                }
+                                if ui.button("Paste").clicked() {
+                                    if let Ok(mut clipboard) = Clipboard::new() {
+                                        if let Ok(text) = clipboard.get_text() {
+                                            self.input_text = text;
+                                        }
+                                    }
+                                    ui.close_menu();
+                                }
+                            });
+                        });
+                    
+                    // Process the input
+                    self.output_text = strip_line_numbers(&self.input_text);
+                    
+                    ui.add_space(10.0);
+                    
+                    // Output section
+                    ui.horizontal(|ui| {
+                        ui.label("Output:");
+                        if ui.button("Copy to Clipboard").clicked() {
+                            if let Ok(mut clipboard) = Clipboard::new() {
+                                let _ = clipboard.set_text(&self.output_text);
+                            }
+                        }
+                    });
+                    
+                    egui::ScrollArea::vertical()
+                        .id_salt("output_scroll")
+                        .min_scrolled_height(200.0)
+                        .max_height(200.0)
+                        .show(ui, |ui| {
+                            ui.add_sized(
+                                [ui.available_width(), 200.0],
+                                egui::TextEdit::multiline(&mut self.output_text)
+                                    .font(egui::TextStyle::Monospace)
+                            ).context_menu(|ui| {
+                                if ui.button("Copy").clicked() {
+                                    if let Ok(mut clipboard) = Clipboard::new() {
+                                        let _ = clipboard.set_text(&self.output_text);
+                                    }
+                                    ui.close_menu();
+                                }
+                                if ui.button("Select All").clicked() {
+                                    ui.close_menu();
+                                }
+                            });
+                        });
+                    
+                    ui.add_space(30.0);
+                });
+                ui.add_space(10.0);
             });
-            
-            ui.add(
-                egui::TextEdit::multiline(&mut self.output_text)
-                    .desired_width(f32::INFINITY)
-                    .desired_rows(12)
-                    .font(egui::TextStyle::Monospace)
-            );
         });
     }
 }
